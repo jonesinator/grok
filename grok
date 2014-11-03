@@ -1,0 +1,76 @@
+#!/bin/bash
+# This script will use OpenGrok to index a list of repositories.
+#
+# Command-Line Parameters:
+#    1 - The absolute path to the directory with all of the repositories to index.
+#    2 - The name of the top-level "site" to index, (http://mygrok:8080/SITE)
+#        Defaults to ROOT which is special and maps to http://mygrok:8080/.
+
+# Bail on the first error.
+set -e
+
+# Parse the command-line options.
+SOURCE_DIR=$1 && [[ -z "${SOURCE_DIR}" ]] && SOURCE_DIR=/data/hgserve/src
+SITE=$2 && [[ -z "${SITE}" ]] && SITE=ROOT
+
+# Get the location of the actual bash script being run.  This is a bit funky and counter to how most
+# scripts work.  Most scripts do whatever they do in the current working directory.  However, this
+# script does its file-based actions relative to where the actual script is located.  This made it
+# really easy to put this script in a cron job without making another script to cd into the right
+# directory or forcing the user to pass the directory into the script.  I stole the below code that
+# determines the bash script location directly from stack overflow.
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo OpenGrok directory is ${DIR}.
+
+# Useful variables.
+TOMCAT_VERSION=tomcat6
+OPENGROK_VERSION=0.12.1
+OPENGROK_URL=https://java.net/projects/opengrok/downloads/download/opengrok-${OPENGROK_VERSION}.tar.gz
+OPENGROK_DIR=${DIR}/opengrok-${OPENGROK_VERSION}
+WEBAPPS_DIR=${DIR}/webapps
+SITE_DIR=${WEBAPPS_DIR}/${SITE}
+
+# Install Tomcat.  If it's already installed then no harm.
+echo Installing Apache Tomcat 6  and Exuberant Ctags if needed.
+sudo apt-get -y install ${TOMCAT_VERSION} exuberant-ctags
+
+# Check if the tomcat6 webapps directory is symlinked to the right place.  If
+# not, then make it.  (Save a backup of the old directory just in case.)
+if [[ "$(readlink /var/lib/${TOMCAT_VERSION}/webapps)" != "${WEBAPPS_DIR}" ]] ; then
+    echo Moving original tomcat webapps directory out of the way and symlinking to the new directory.
+    mkdir -p ${WEBAPPS_DIR}
+    sudo mv --backup=numbered /var/lib/${TOMCAT_VERSION}/webapps /var/lib/${TOMCAT_VERSION}/webapps_old
+    sudo ln -s ${WEBAPPS_DIR} /var/lib/${TOMCAT_VERSION}/webapps
+fi
+
+# If the OpenGrok code doesn't exist, get it and extract it.
+echo Retrieving and unpacking the OpenGrok package if needed.
+[[ ! -d "${OPENGROK_DIR}" ]] && wget -q -O - ${OPENGROK_URL} | tar -xz
+
+# If the OpenGrok site does not exist, then try to create it.
+echo Creating the tomcat site ${SITE}
+if [[ ! -d "${SITE_DIR}" ]] ; then
+    # Make the site directory, and extract the OpenGrok template site into it.
+    mkdir -p ${SITE_DIR}
+    cp ${OPENGROK_DIR}/lib/source.war ${SITE_DIR}
+    pushd ${SITE_DIR}
+    jar -xf source.war
+    rm source.war
+    mkdir source data
+
+    # Update the web.xml to point to the (future) location of the configuration.xml file.
+    sed -i "s|/var/opengrok/etc/configuration.xml|${SITE_DIR}/WEB-INF/configuration.xml|" WEB-INF/web.xml 
+fi
+
+# Index the code.  The if/else is annoyingly for choosing the correct -w parameter.
+JAVA_OPTS="$JAVA_OPTS -Xmx8g "
+echo Indexing all of the source code.
+if [[ "${SITE}" == "ROOT" ]] ; then
+    java ${JAVA_OPTS} -jar ${OPENGROK_DIR}/lib/opengrok.jar -d ${SITE_DIR}/data -s ${SOURCE_DIR} -P \
+        -W ${SITE_DIR}/WEB-INF/configuration.xml -w / -a on -H -S -t 4
+else
+    java ${JAVA_OPTS} -jar ${OPENGROK_DIR}/lib/opengrok.jar -d ${SITE_DIR}/data -s ${SOURCE_DIR} -P \
+        -W ${SITE_DIR}/WEB-INF/configuration.xml -w /${SITE} -a on -H -S -t 4
+fi
+
+sudo service ${TOMCAT_VERSION} restart
