@@ -13,11 +13,11 @@ set -e
 SOURCE_DIR=$1 && [[ -z "${SOURCE_DIR}" ]] && SOURCE_DIR=/data/hgserve/src
 SITE=$2 && [[ -z "${SITE}" ]] && SITE=ROOT
 
-# Get the location of the actual bash script being run.  This is a bit funky and counter to how most
-# scripts work.  Most scripts do whatever they do in the current working directory.  However, this
-# script does its file-based actions relative to where the actual script is located.  This made it
+# Get the location of the actual bash script being run. This is a bit funky and counter to how most
+# scripts work. Most scripts do whatever they do in the current working directory. However, this
+# script does its file-based actions relative to where the actual script is located. This made it
 # really easy to put this script in a cron job without making another script to cd into the right
-# directory or forcing the user to pass the directory into the script.  I stole the below code that
+# directory or forcing the user to pass the directory into the script. I stole the below code that
 # determines the bash script location directly from stack overflow.
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo OpenGrok directory is ${DIR}.
@@ -30,12 +30,12 @@ OPENGROK_DIR=${DIR}/opengrok-${OPENGROK_VERSION}
 WEBAPPS_DIR=${DIR}/webapps
 SITE_DIR=${WEBAPPS_DIR}/${SITE}
 
-# Install Tomcat.  If it's already installed then no harm.
+# Install Tomcat. If it's already installed then no harm.
 echo Installing Apache Tomcat 6  and Exuberant Ctags if needed.
 sudo apt-get -y install ${TOMCAT_VERSION} exuberant-ctags
 
-# Check if the tomcat6 webapps directory is symlinked to the right place.  If
-# not, then make it.  (Save a backup of the old directory just in case.)
+# Check if the tomcat6 webapps directory is symlinked to the right place. If
+# not, then make it. (Save a backup of the old directory just in case.)
 if [[ "$(readlink /var/lib/${TOMCAT_VERSION}/webapps)" != "${WEBAPPS_DIR}" ]] ; then
     echo Moving original tomcat webapps directory out of the way and symlinking to the new directory.
     mkdir -p ${WEBAPPS_DIR}
@@ -62,7 +62,7 @@ if [[ ! -d "${SITE_DIR}" ]] ; then
     sed -i "s|/var/opengrok/etc/configuration.xml|${SITE_DIR}/WEB-INF/configuration.xml|" WEB-INF/web.xml 
 fi
 
-# Index the code.  The if/else is annoyingly for choosing the correct -w parameter.
+# Index the code. The if/else is annoyingly for choosing the correct -w parameter.
 JAVA_OPTS="$JAVA_OPTS -Xmx8g "
 echo Indexing all of the source code.
 if [[ "${SITE}" == "ROOT" ]] ; then
