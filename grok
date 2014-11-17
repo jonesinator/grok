@@ -31,8 +31,8 @@ WEBAPPS_DIR=${DIR}/webapps
 SITE_DIR=${WEBAPPS_DIR}/${SITE}
 
 # Install Tomcat. If it's already installed then no harm.
-echo Installing Apache Tomcat 6  and Exuberant Ctags if needed.
-sudo apt-get -y install ${TOMCAT_VERSION} exuberant-ctags
+echo Installing Apache Tomcat 6, Exuberant Ctags, and default-jdk if needed.
+sudo apt-get -y install ${TOMCAT_VERSION} exuberant-ctags default-jdk
 
 # Check if the tomcat6 webapps directory is symlinked to the right place. If
 # not, then make it. (Save a backup of the old directory just in case.)
@@ -59,7 +59,7 @@ if [[ ! -d "${SITE_DIR}" ]] ; then
     mkdir source data
 
     # Update the web.xml to point to the (future) location of the configuration.xml file.
-    sed -i "s|/var/opengrok/etc/configuration.xml|${SITE_DIR}/WEB-INF/configuration.xml|" WEB-INF/web.xml 
+    sed -i "s|/var/opengrok/etc/configuration.xml|${SITE_DIR}/WEB-INF/configuration.xml|" WEB-INF/web.xml
 fi
 
 # Index the code. The if/else is annoyingly for choosing the correct -w parameter.
