@@ -9,6 +9,10 @@
 # Bail on the first error.
 set -e
 
+# Pipe all script output to syslog. This makes it easier to debug the sctipt
+# when it's failing (escpecially when running from cron).
+exec 1> >(logger -s -t $(basename $0)) 2>&1
+
 # Parse the command-line options.
 SOURCE_DIR=$1 && [[ -z "${SOURCE_DIR}" ]] && SOURCE_DIR=/data/hgserve/src
 SITE=$2 && [[ -z "${SITE}" ]] && SITE=ROOT
